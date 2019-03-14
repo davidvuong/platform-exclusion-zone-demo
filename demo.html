@@ -1,0 +1,145 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>Demo</title>
+
+  <style>
+    canvas {
+      padding-left: 0;
+      padding-right: 0;
+      padding-bottom: 5px;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+      width: 900px;
+    }
+  </style>
+
+  <link rel="stylesheet" type="text/css" href="./node_modules/bootstrap/dist/css/bootstrap.css">
+
+  <script type="text/javascript" src="./node_modules/paper/dist/paper-full.js"></script>
+  <script type="text/javascript" src="./node_modules/lodash/lodash.js"></script>
+  <script type="text/javascript" charset="utf-8">
+    const gridSize = 32;
+
+    // Define our colours!
+    const lineColor = paper.Color(50, 0, 0, 0.1);
+    const cellColor = paper.Color(0, 0, 0, 0.3);
+
+    // Demo images.
+    const inputImageUrl = 'https://s3.amazonaws.com/ii-web-production/demo/demo-01.jpg';
+    //const inputImageUrl = 'https://s3.amazonaws.com/ii-web-production/demo/demo-02.jpg';
+    //const inputImageUrl = 'https://s3.amazonaws.com/ii-web-production/demo/demo-03.jpg';
+    //const inputImageUrl = 'https://s3.amazonaws.com/ii-web-production/demo/demo-04.jpg';
+
+    // Instantiate an in-memory representation of the grid (on/off cells)
+    const grid = _.times(gridSize, () => _.fill(_.times(gridSize), 0));
+
+    function drawCell(point) {
+      // Draw a simple grid over the image (lines are relative to the image size).
+      const viewSize = paper.view.size;
+      const cellWidth = viewSize.width / gridSize;
+      const cellHeight = viewSize.height / gridSize;
+
+      const { x, y } = point;
+
+      // Figure out which cell this point belongs to and was previously in.
+      const columnIndex = Math.floor(x / cellWidth);
+      const rowIndex = Math.floor(y / cellHeight);
+
+      // Exclude this cell.
+      grid[rowIndex][columnIndex] = 1;
+
+      const cell = new paper.Path({
+        segments: [
+          [columnIndex * cellWidth, rowIndex * cellHeight], // top left
+          [(columnIndex + 1) * cellWidth, rowIndex * cellHeight], // top right
+          [(columnIndex + 1) * cellWidth, (rowIndex + 1) * cellHeight], // bottom right
+          [columnIndex * cellWidth, (rowIndex + 1) * cellHeight], // bottom left
+        ]
+      });
+      cell.fillColor = cellColor;
+    }
+
+    function drawGrid() {
+      const viewSize = paper.view.size;
+      const cellWidth = viewSize.width / gridSize;
+      const cellHeight = viewSize.height / gridSize;
+
+      // Draw the horizontal and verticle lines.
+      _.times(gridSize + 1, (i) => {
+        // Draw the vertical line.
+        const verticlePath = new paper.Path.Line(
+          new paper.Point(0, i * cellHeight),
+          new paper.Point(viewSize.width, i * cellHeight),
+        );
+        verticlePath.strokeColor = lineColor;
+
+        // Draw the horizontal line.
+        const horizontalPath = new paper.Path.Line(
+          new paper.Point(i * cellWidth, 0),
+          new paper.Point(i * cellWidth, viewSize.height),
+        );
+        horizontalPath.strokeColor = lineColor;
+      });
+    }
+
+    function detect() {
+      const options = {
+        method: 'post',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: inputImageUrl,
+          gridSize,
+          zones: grid,
+        }),
+      };
+      return fetch('http://localhost:9091/detect', options)
+        .then((response) => {
+          return response.json();
+        });
+    }
+
+    window.onload = function () {
+      const canvas = document.getElementById('demo');
+      paper.setup(canvas);
+
+      // Configure canvas with paperjs and draw test input image.
+      const inputImage = new paper.Raster(inputImageUrl);
+      inputImage.position = paper.view.center;
+      drawGrid();
+
+      paper.view.onMouseDown = (event) => {
+        drawCell(event.point);
+      };
+
+      paper.view.onMouseDrag = (event) => {
+        drawCell(event.point);
+      };
+
+      document.getElementById('submitButton').onclick = function (event) {
+        const self = this;
+        self.innerText = 'Checking for people...';
+
+        detect().then((response) => {
+          debugger;
+          self.innerText = `Confidence: ${response.imageResults[0].objects[0].confidence}`;
+        });
+      };
+    }
+  </script>
+</head>
+
+<body>
+  <div class="container">
+    <h1 class="text-center">Exclusion Zone Demo</h1>
+    <canvas id="demo" resize></canvas>
+    <button id="submitButton" type="button" class="btn btn-primary btn-lg btn-block">Is there a person?</button>
+  </div>
+</body>
+
+</html>
