@@ -15,6 +15,7 @@ app.use((req, res, next) => {
 });
 
 // Platform API //
+const apiHost = 'https://api.staging.imageintelligence.com';
 const clientId = process.env.PLATFORM_CLIENT_ID;
 const clientSecret = process.env.PLATFORM_CLIENT_SECRET;
 
@@ -29,7 +30,7 @@ function getToken() {
     }),
   };
 
-  return fetch('https://api.imageintelligence.com/v2/oauth/token', options)
+  return fetch(`${apiHost}/v2/oauth/token`, options)
     .then((response) => {
       return response.json();
     })
@@ -47,7 +48,7 @@ function getDetectJob(id, token) {
       'Authorization': `Bearer ${token}`,
     },
   };
-  return fetch(`https://api.imageintelligence.com/v2/detect/${id}`, options)
+  return fetch(`${apiHost}/v2/detect/${id}`, options)
     .then((response) => {
       return response.json();
     })
@@ -71,7 +72,7 @@ function createDetectJob(url, classes, token) {
       classes,
     }),
   };
-  return fetch('https://api.imageintelligence.com/v2/detect', options)
+  return fetch(`${apiHost}/v2/detect`, options)
     .then((response) => {
       return response.json();
     })
